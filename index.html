@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1017">
+<meta name="description" content="Personal crypto receiving address dashboard">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Crypto Wallet</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1017;--panel:#171e2b;--line:#303b4e;--text:#f4f6fb;--muted:#aab4c4;--accent:#a7f06a;--danger:#ffb4a8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,sans-serif}
+main{max-width:600px;margin:auto;padding:calc(20px + env(safe-area-inset-top)) 16px 40px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}.brand{font-weight:800;font-size:21px}.tag{font-size:10px;color:var(--accent);border:1px solid #49633a;border-radius:20px;padding:6px 9px;letter-spacing:.5px}
+h1{font-size:27px;margin:0 0 5px}.muted{color:var(--muted)}.sub{font-size:13px;line-height:1.5}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:16px}
+label{display:block;font-size:13px;color:var(--muted);margin:13px 0 7px}
+select,input{width:100%;border:1px solid var(--line);border-radius:12px;padding:14px;background:#0e1420;color:var(--text);font:inherit}
+button{border:0;border-radius:12px;padding:14px 16px;font:700 15px system-ui;cursor:pointer}
+.primary{background:var(--accent);color:#17200f;width:100%;margin-top:14px}.secondary{background:#222d40;color:var(--text);border:1px solid var(--line)}
+.saved{overflow-wrap:anywhere;background:#0e1420;border:1px solid var(--line);border-radius:11px;padding:12px;font-size:12px;line-height:1.5;min-height:44px;margin-top:8px}
+.status{display:none;margin-top:12px;padding:12px;border-radius:11px;font-size:13px;line-height:1.5}
+.status.ok{display:block;background:#183020;color:#c7f5ad}.status.err{display:block;background:#38251f;color:#ffd0b5}
+.row{display:flex;gap:9px;margin-top:10px}.row button{flex:1;min-width:0}
+.assetlist{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.asset{background:#151c28;border:1px solid var(--line);color:var(--text);text-align:left;padding:12px;border-radius:13px}
+.asset.active{border-color:var(--accent);background:#1b2920}.asset b{display:block;font-size:14px;margin-top:5px}.asset small{color:var(--muted);font-size:11px}
+.warning{font-size:12px;line-height:1.55;color:#f5ce82;margin-top:16px}
+footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px}
+@media(max-width:360px){.assetlist{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="brand">◈ Crypto Wallet</div><div class="tag">PERSONAL WALLET</div></header>
+<h1>Receive crypto</h1>
+<div class="muted sub">Save your own public receiving addresses. Funds remain in your Trust Wallet.</div>
+<section class="card">
+ <b>Select asset / network</b>
+ <div class="assetlist" id="assetlist">
+  <button class="asset active" data-network="btc">₿<b>Bitcoin</b><small>BTC network</small></button>
+  <button class="asset" data-network="eth">Ξ<b>Ethereum</b><small>ETH network</small></button>
+  <button class="asset" data-network="bep20">₮<b>USDT BEP20</b><small>BNB Smart Chain</small></button>
+  <button class="asset" data-network="trc20">₮<b>USDT TRC20</b><small>TRON network</small></button>
+  <button class="asset" data-network="erc20">₮<b>USDT ERC20</b><small>Ethereum network</small></button>
+ </div>
+ <label for="address">Public receiving address</label>
+ <input id="address" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your public address">
+ <button class="primary" id="save" type="button">Save address</button>
+ <div id="status" class="status" role="status" aria-live="polite"></div>
+</section>
+<section class="card">
+ <b id="savedTitle">Saved Bitcoin address</b>
+ <div class="saved" id="savedAddress">No address saved for this network.</div>
+ <div class="row"><button class="secondary" id="copy" type="button">Copy</button><button class="secondary" id="remove" type="button">Remove</button></div>
+</section>
+<div class="warning"><b>Security:</b> Never enter your recovery phrase, private key, password or OTP. Only use public receiving addresses. Check the selected network carefully before sharing. This app does not hold funds, sign transactions or verify deposits.</div>
+<footer>Personal address book · Data saved in this browser on this device</footer>
+</main>
+<script>
+(()=>{
+"use strict";
+const assets={
+ btc:{title:"Bitcoin (BTC)",valid:v=>/^(bc1[ac-hj-np-z02-9]{11,}|[13][a-km-zA-HJ-NP-Z1-9]{25,})$/.test(v),hint:"BTC address should normally start with bc1, 1 or 3."},
+ eth:{title:"Ethereum (ETH)",valid:v=>/^0x[a-fA-F0-9]{40}$/.test(v),hint:"Ethereum address should be 0x followed by 40 hexadecimal characters."},
+ bep20:{title:"USDT BEP20",valid:v=>/^0x[a-fA-F0-9]{40}$/.test(v),hint:"BEP20 address should be a valid 0x EVM address."},
+ trc20:{title:"USDT TRC20",valid:v=>/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(v),hint:"TRON address should normally start with T and contain 34 characters."},
+ erc20:{title:"USDT ERC20",valid:v=>/^0x[a-fA-F0-9]{40}$/.test(v),hint:"ERC20 address should be a valid 0x EVM address."}
+};
+let current="btc";
+const $=id=>document.getElementById(id);
+const key=n=>"crypto-wallet-address-"+n;
+function get(n){try{return localStorage.getItem(key(n))||""}catch(e){return ""}}
+function notify(message,type){$("status").className="status "+type;$("status").textContent=message}
+function render(){
+ document.querySelectorAll(".asset").forEach(b=>b.classList.toggle("active",b.dataset.network===current));
+ $("address").value=get(current);
+ $("savedTitle").textContent="Saved "+assets[current].title+" address";
+ $("savedAddress").textContent=get(current)||"No address saved for this network.";
+ $("status").className="status";$("status").textContent="";
+ $("address").placeholder=current==="btc"?"BTC address (bc1, 1 or 3…)":current==="trc20"?"TRON address (T…)":"Public address for "+assets[current].title;
+}
+document.querySelectorAll(".asset").forEach(b=>b.addEventListener("click",()=>{current=b.dataset.network;render()}));
+$("save").addEventListener("click",()=>{
+ const v=$("address").value.trim();
+ if(!v){notify("Please paste your public receiving address first.","err");return}
+ if(/\s/.test(v)){notify("Address contains spaces. Check it and paste again.","err");return}
+ if(!assets[current].valid(v)){notify(assets[current].hint,"err");return}
+ try{localStorage.setItem(key(current),v);render();notify(assets[current].title+" address saved on this device.","ok")}
+ catch(e){notify("Browser storage is unavailable. Open this hosted app in Safari and allow website data.","err")}
+});
+$("copy").addEventListener("click",async()=>{
+ const v=get(current);if(!v){notify("No saved address to copy.","err");return}
+ try{await navigator.clipboard.writeText(v);notify("Address copied.","ok")}
+ catch(e){notify("Copy permission unavailable. Select the address above and copy it manually.","err")}
+});
+$("remove").addEventListener("click",()=>{
+ try{localStorage.removeItem(key(current));render();notify("Address removed for this network.","ok")}
+ catch(e){notify("Could not remove address in this browser.","err")}
+});
+render();
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
+})();
+</script>
+</body></html>
